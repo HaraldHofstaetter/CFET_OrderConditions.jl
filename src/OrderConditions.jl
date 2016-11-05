@@ -3,6 +3,11 @@ module OrderConditions
 using Giac
 using Combinatorics
 
+export gen_exp_tBt_derivatives_coeffs
+export gen_C_derivatives_at_0
+export gen_C_derivatives_at_0_in_terms_of_A
+export gen_exp_tBt_derivatives_at_0_in_terms_of_A
+export gen_CFET_order_conditions
 
 
 # package code goes here
@@ -66,18 +71,12 @@ function gen_C_derivatives_at_0(N::Integer)
 end
 
 
-function gen_C_derivatives_at_0_in_terms_of_A(N::Integer, a::Array{giac,1}, c::Array{giac,1})
+function gen_C_derivatives_at_0_in_terms_of_A(N::Integer, b::Array{giac,1})
     C_derivatives_at_0=gen_C_derivatives_at_0(N)
     C1 = [Dict{Array{Int64,1},giac}() for n=0:N]
     for n = 0:N
-        a0 = C_derivatives_at_0[n+1]
-        a1 = C1[n+1]
-        for (p,coeff) in a0
-            c1 = giac(coeff)
-            for j =1:length(p)
-                c1 = c1*sum([a[l]*c[l]^p[j] for l=1:length(c)])                
-            end
-            C1[n+1][p] = c1
+        for (p,coeff) in C_derivatives_at_0[n+1]
+            C1[n+1][p] = factor(giac(coeff) * prod([b[p[j]+1]  for j =1:length(p)]))
         end
     end
     C1
@@ -118,9 +117,8 @@ function add(x::Dict{Array{Array{Int64,1},1},Giac.giac}, y::Dict{Array{Array{Int
     r
 end
 
-
-function gen_exp_tBt_derivatives_at_0_in_terms_of_A(N::Integer, a::Array{giac,1}, c::Array{giac,1}) 
-    C_derivatives_at_0_in_terms_of_A=gen_C_derivatives_at_0_in_terms_of_A(N-1, a, c)
+function gen_exp_tBt_derivatives_at_0_in_terms_of_A(N::Integer, b::Array{giac,1}) 
+    C_derivatives_at_0_in_terms_of_A=gen_C_derivatives_at_0_in_terms_of_A(N-1, b)
     exp_tBt_derivatives_coeffs=gen_exp_tBt_derivatives_coeffs(N)
     r = Dict{Array{Array{Int64,1},1},Giac.giac}[]
     for n = 1:N
@@ -142,7 +140,7 @@ end
 multinomial_coeff(q::Int, k::Array{Int,1}) = div(factorial(q), prod([factorial(i) for i in k]))
 
 
-function gen_order_conditions(N::Integer,J::Integer, K::Integer)
+function gen_CFET_order_conditions(N::Integer,J::Integer, K::Integer)
     a = [giac[giac(string("a",j,k)) for k=1:K] for j=1:J]
     c = giac[giac(string("c",k)) for k=1:K] 
     C = gen_exp_tBt_derivatives_at_0_in_terms_of_A(N, a[1], c) 
