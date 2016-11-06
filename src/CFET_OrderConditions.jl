@@ -1,4 +1,4 @@
-module OrderConditions
+module CFET_OrderConditions
 
 using Giac
 using Combinatorics
