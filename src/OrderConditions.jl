@@ -85,11 +85,11 @@ function gen_C_derivatives_at_0_in_terms_of_A{T}(N::Integer, b::Array{T,1})
     C1
 end
 
-Id(T::Type) = Dict{Array{Array{Int64,1},1},T}(Array[Int64[]]=>one(T))
+Id(T::Type; f=one(T)) = LCCC{T}(Array[Int64[]]=>f)
 is_c_number(x) = length(x)==1 && length(first(keys(x))[1])==0
 
-function mult{T}(x::Dict{Array{Array{Int64,1},1},T}, y::Dict{Array{Int64,1},T})
-    r = Dict{Array{Array{Int64,1},1},T}()
+function mult{T}(x::LCCC{T}, y::Dict{Array{Int64,1},T})
+    r = LCCC{T}()
     for (p,c) in x
         for (q, d) in y
             pq = copy(p)
@@ -101,15 +101,15 @@ function mult{T}(x::Dict{Array{Array{Int64,1},1},T}, y::Dict{Array{Int64,1},T})
 end
 
 
-function mult{T}(x::Dict{Array{Array{Int64,1},1},T}, y::Dict{Array{Array{Int64,1},1},T})
+function mult{T}(x::LCCC{T}, y::LCCC{T})
     if is_c_number(x)
         c = first(values(x))
-        return Dict{Array{Array{Int64,1},1},T}([p=>c*d for (p,d) in y])
+        return LCCC{T}([p=>c*d for (p,d) in y])
     elseif is_c_number(y)
         c = first(values(y))
-        return Dict{Array{Array{Int64,1},1},T}([p=>c*d for (p,d) in x])
+        return LCCC{T}([p=>c*d for (p,d) in x])
     else
-        r = Dict{Array{Array{Int64,1},1},T}()
+        r = LCCC{T}()
         for (p,c) in x
             for (q, d) in y
                 pq = vcat(p,q)
@@ -121,7 +121,7 @@ function mult{T}(x::Dict{Array{Array{Int64,1},1},T}, y::Dict{Array{Array{Int64,1
 end
 
 
-function add{T}(x::Dict{Array{Array{Int64,1},1},T}, y::Dict{Array{Array{Int64,1},1},T}; 
+function add{T}(x::LCCC{T}, y::LCCC{T}; 
                 fx=one(T), fy=one(T))
     r = copy(x)
     for (p,c) in y
@@ -134,11 +134,11 @@ end
 function gen_exp_tBt_derivatives_at_0_in_terms_of_A{T}(N::Integer, b::Array{T,1}) 
     C_derivatives_at_0_in_terms_of_A=gen_C_derivatives_at_0_in_terms_of_A(N-1, b)
     exp_tBt_derivatives_coeffs=gen_exp_tBt_derivatives_coeffs(N)
-    r = [Dict{Array{Array{Int64,1},1},T}(Array[Int64[]]=>one(T))] # Id    
+    r = [LCCC{T}(Array[Int64[]]=>one(T))] # Id    
     for n = 1:N
-        y = Dict{Array{Array{Int64,1},1},T}()
+        y = LCCC{T}()
         for (p,d) in exp_tBt_derivatives_coeffs[n+1]
-            x = Dict{Array{Array{Int64,1},1},T}(
+            x = LCCC{T}(
             [Array[p1]=>d*d1 for (p1,d1) in C_derivatives_at_0_in_terms_of_A[p[1]+1]])
             for i = 2:length(p)
                 x = mult(x, C_derivatives_at_0_in_terms_of_A[p[i]+1])
@@ -153,19 +153,19 @@ end
 
 function expand_commutators{T}(a::Array{Int64,1}, f::T; coeff_type=T)
     if length(a)>=3
-        b = Dict{Array{Array{Int64,1},1},coeff_type}(Array[[a[1]]]=>one(T))
+        b = LCCC{coeff_type}(Array[[a[1]]]=>one(T))
         c = expand_commutators(a[2:end], f, coeff_type=coeff_type)
         return add(mult(b,c), mult(c,b), fy=-one(T))
     elseif length(a)==2
-        return Dict{Array{Array{Int64,1},1},coeff_type}(Array[[a[1]], [a[2]]]=>f, Array[[a[2]], [a[1]]]=>-f)
+        return LCCC{coeff_type}(Array[[a[1]], [a[2]]]=>f, Array[[a[2]], [a[1]]]=>-f)
     else
-        return Dict{Array{Array{Int64,1},1},coeff_type}(Array[a]=>f)
+        return LCCC{coeff_type}(Array[a]=>f)
     end
 end
 
 
-function expand_commutators{T}(a::Dict{Array{Array{Int64,1},1},T})    
-    b = Dict{Array{Array{Int64,1},1},T}()
+function expand_commutators{T}(a::LCCC{T})    
+    b = LCCC{T}()
     for (p,c) in a        
         q = expand_commutators(p[1], one(T), coeff_type=T)
         for i = 2:length(p)
@@ -177,31 +177,49 @@ function expand_commutators{T}(a::Dict{Array{Array{Int64,1},1},T})
 end
 
 
-
 multinomial_coeff(q::Int, k::Array{Int,1}) = div(factorial(q), prod([factorial(i) for i in k]))
 
 
-function gen_CFET_order_conditions(N::Integer,J::Integer, K::Integer)
-    a = [giac[giac(string("a",j,k)) for k=1:K] for j=1:J]
-    c = giac[giac(string("c",k)) for k=1:K] 
-    C = gen_exp_tBt_derivatives_at_0_in_terms_of_A(N, a[1], c) 
-    for q=1:N-1
+function gen_CFET_order_conditions(N::Integer,J::Integer)
+    b = [giac[giac(string("b",j,"_",n)) for n=0:N] for j=1:J]
+    C = gen_exp_tBt_derivatives_at_0_in_terms_of_A(N, b[1])
+    C = [expand_commutators(c) for c in C]
+    C = [LCCC{giac}([key=>factor(val) for (key,val) in c]) for c in C]
+    CC = Array[C]
+    for j=2:J
+        push!(CC, [LCCC{giac}([key=>subst(val,b[1],b[j]) for (key,val) in c]) for c in C])
+    end    
+    Y = LCCC{giac}[]
+    for q=0:N-1
+        y = LCCC{giac}()
         for k0 in Combinatorics.WithReplacementCombinations(1:J,q+1)
-            k = zeros(Int,s)
+            k = zeros(Int,J)
             for j in k0
                 k[j]+=1
             end
             coeff = multinomial_coeff(q+1, k) 
-            x = C 
+            x = Id(giac, f=giac(coeff))
+            for j = J:-1:1
+                x = mult(x, CC[j][k[j]+1])
+            end
+            y = add(y, x)
         end   
         for k0 in Combinatorics.WithReplacementCombinations(1:J+1,q)
-            k = zeros(Int,s)
+            k = zeros(Int,J+1)
             for j in k0
                 k[j]+=1
             end
             coeff = multinomial_coeff(q, k) 
+            x = LCCC{giac}(Array[[k[J+1]]]=>coeff)
+            for j = J:-1:1
+                x = mult(x, CC[j][k[j]+1])
+            end
+            y = add(y, x, fy=-one(giac))
+            
         end   
+        push!(Y, LCCC{giac}([key=>factor(val) for (key,val) in y]))
     end
+    Y
 end
 
 
