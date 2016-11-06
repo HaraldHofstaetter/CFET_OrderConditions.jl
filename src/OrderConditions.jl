@@ -3,6 +3,7 @@ module OrderConditions
 using Giac
 using Combinatorics
 
+export commutator, LCCC
 export gen_exp_tBt_derivatives_coeffs
 export gen_C_derivatives_at_0
 export gen_C_derivatives_at_0_in_terms_of_A
@@ -10,12 +11,16 @@ export gen_exp_tBt_derivatives_at_0_in_terms_of_A
 export expand_commutators
 export gen_CFET_order_conditions
 
+typealias Commutator Array{Int64,1}
+typealias LCCC{T} Dict{Array{Array{Int64,1},1},T} # Linear Combination of Commutator Chains
+
 
 
 function gen_exp_tBt_derivatives_coeffs(N::Integer)
-    A = [Dict{Array{Int64,1},Int64}([0]=>1)]
+    A = [Dict{Array{Int64,1},Int64}([]=>1),    #Id
+         Dict{Array{Int64,1},Int64}([0]=>1)]
     for n = 2:N
-        a0 = A[n-1]
+        a0 = A[n]
         # a1 = a0*C:
         a1 = [vcat(key, 0)=>val for (key,val) in a0]
         # a1 = a1 + (d/dt)a0:
@@ -52,21 +57,19 @@ function gen_C_derivatives_at_0(N::Integer)
             push!(A[k], a1)
         end
     end
-    C = [Dict{Array{Int64,1},Rational{Int64}}([l]=>(l==0?1:2)) for l=0:N]
+    C = [Dict{Array{Int64,1},Int64}([n]=>(n+1)) for n=0:N]
     for n = 2:N
-        fac = 1
         a1 = C[n+1]
         for k=1:n-1
-            fac *= (k+1)
+            f = binomial(n,k+1)
             a0 = A[k][n-k-1+1]
             for (p,c) in a0
                 d = get(a1, p, 0//1)
-                a1[p] = d+c//fac
+                a1[p] = d+f*c
             end                                   
         end        
         C[n+1] = a1
     end    
-    #A,C
     C
 end
 
@@ -82,7 +85,8 @@ function gen_C_derivatives_at_0_in_terms_of_A{T}(N::Integer, b::Array{T,1})
     C1
 end
 
-
+Id(T::Type) = Dict{Array{Array{Int64,1},1},T}(Array[Int64[]]=>one(T))
+is_c_number(x) = length(x)==1 && length(first(keys(x))[1])==0
 
 function mult{T}(x::Dict{Array{Array{Int64,1},1},T}, y::Dict{Array{Int64,1},T})
     r = Dict{Array{Array{Int64,1},1},T}()
@@ -98,14 +102,22 @@ end
 
 
 function mult{T}(x::Dict{Array{Array{Int64,1},1},T}, y::Dict{Array{Array{Int64,1},1},T})
-    r = Dict{Array{Array{Int64,1},1},T}()
-    for (p,c) in x
-        for (q, d) in y
-            pq = vcat(p,q)
-            r[pq] = c*d
-        end
-    end     
-    r
+    if is_c_number(x)
+        c = first(values(x))
+        return Dict{Array{Array{Int64,1},1},T}([p=>c*d for (p,d) in y])
+    elseif is_c_number(y)
+        c = first(values(y))
+        return Dict{Array{Array{Int64,1},1},T}([p=>c*d for (p,d) in x])
+    else
+        r = Dict{Array{Array{Int64,1},1},T}()
+        for (p,c) in x
+            for (q, d) in y
+                pq = vcat(p,q)
+                r[pq] = c*d
+            end
+        end     
+        return r
+    end
 end
 
 
@@ -122,10 +134,10 @@ end
 function gen_exp_tBt_derivatives_at_0_in_terms_of_A{T}(N::Integer, b::Array{T,1}) 
     C_derivatives_at_0_in_terms_of_A=gen_C_derivatives_at_0_in_terms_of_A(N-1, b)
     exp_tBt_derivatives_coeffs=gen_exp_tBt_derivatives_coeffs(N)
-    r = Dict{Array{Array{Int64,1},1},T}[]
+    r = [Dict{Array{Array{Int64,1},1},T}(Array[Int64[]]=>one(T))] # Id    
     for n = 1:N
         y = Dict{Array{Array{Int64,1},1},T}()
-        for (p,d) in exp_tBt_derivatives_coeffs[n]
+        for (p,d) in exp_tBt_derivatives_coeffs[n+1]
             x = Dict{Array{Array{Int64,1},1},T}(
             [Array[p1]=>d*d1 for (p1,d1) in C_derivatives_at_0_in_terms_of_A[p[1]+1]])
             for i = 2:length(p)
