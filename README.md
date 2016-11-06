@@ -1,7 +1,7 @@
 # CFET_OrderConditions.jl
 
 ## Requirements
-`CFET_OrderConditions.jl` reqires the package `Giac`, a Julia interface to the Giac computer algebra system, see https://github.com/HaraldHofstaetter/Giac.jl.
+`CFET_OrderConditions.jl` requires the package `Giac`, a Julia interface to the Giac computer algebra system, see https://github.com/HaraldHofstaetter/Giac.jl.
 
 
 ## Installation
