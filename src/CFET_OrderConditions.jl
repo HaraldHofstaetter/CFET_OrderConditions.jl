@@ -11,6 +11,9 @@ export gen_exp_tBt_derivatives_at_0_in_terms_of_A
 export expand_commutators
 export gen_CFET_order_conditions
 
+export number_commutators_of_grade_equal_to
+export number_commutators_of_grade_equal_or_less_than
+
 typealias Commutator Array{Int64,1}
 typealias LCCC{T} Dict{Array{Array{Int64,1},1},T} # Linear Combination of Commutator Chains
 
@@ -222,6 +225,25 @@ function gen_CFET_order_conditions(N::Integer,J::Integer)
     Y
 end
 
+function number_commutators_of_grade_equal_to(n::Integer)
+    if n==1
+        return 1
+    end   
+    f = factor(n)
+    p = collect(keys(f))
+    k = collect(values(f))
+    nu = 0
+    for l = 0:(2^length(p)-1)
+        lb = bin(l,length(p))
+        mu = (-1)^count_ones(l)
+        pot = prod([p[j]^(k[j]-(lb[j]=='0'?0:1)) for j=1:length(p)])
+        nu += mu*2^pot    
+    end
+    div(nu,n)
+end
+
+number_commutators_of_grade_equal_or_less_than(n::Integer) =
+    sum([num_of_eqs(k) for k=1:n])
 
 
 
