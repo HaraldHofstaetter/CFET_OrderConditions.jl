@@ -15,6 +15,7 @@ export number_commutators_of_grade_equal_to
 export number_commutators_of_grade_equal_or_less_than
 
 export integer_vector_weighted, lyndon_words, gen_hall_basis_elements_of_grade
+export gen_CFET_order_conditions_without_redundancies
 
 typealias Commutator Array{Int64,1}
 typealias LCCC{T} Dict{Array{Array{Int64,1},1},T} # Linear Combination of Commutator Chains
@@ -194,7 +195,6 @@ function gen_CFET_order_conditions(N::Integer,J::Integer)
     for j=2:J
         push!(CC, [LCCC{giac}([key=>subst(val,b[1],b[j]) for (key,val) in c]) for c in C])
     end    
-    #Y = LCCC{giac}[]
     Y = Dict{Array{Int64,1},giac}[]
     for q=0:N-1
         y = LCCC{giac}()
@@ -223,7 +223,6 @@ function gen_CFET_order_conditions(N::Integer,J::Integer)
             y = add(y, x, fy=-one(giac))
             
         end   
-        #push!(Y, LCCC{giac}([key=>factor(val) for (key,val) in y]))
         push!(Y, Dict{Array{Int64,1},giac}([[k[1] for k in key]=>factor(val) for (key,val) in y]))
     end
     Y
@@ -403,6 +402,12 @@ function gen_hall_basis_elements_of_grade(g::Int)
         end
     end
     res
+end
+
+function gen_CFET_order_conditions_without_redundancies(N::Integer,J::Integer)
+    C0 = gen_CFET_order_conditions(N, J)
+    Dict{Array{Int, 1}, giac}[Dict{Array{Int, 1}, giac}(
+        [b=>C0[k][b] for b in gen_hall_basis_elements_of_grade(k)]) for k=1:length(C0)]
 end
 
 
