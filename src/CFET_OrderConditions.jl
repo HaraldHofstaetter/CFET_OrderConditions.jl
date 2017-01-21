@@ -14,6 +14,8 @@ export gen_CFET_order_conditions
 export number_commutators_of_grade_equal_to
 export number_commutators_of_grade_equal_or_less_than
 
+export integer_vector_weighted, lyndon_words
+
 typealias Commutator Array{Int64,1}
 typealias LCCC{T} Dict{Array{Array{Int64,1},1},T} # Linear Combination of Commutator Chains
 
@@ -244,6 +246,150 @@ end
 
 number_commutators_of_grade_equal_or_less_than(n::Integer) =
     sum([num_of_eqs(k) for k=1:n])
+
+
+
+# The following functions are stolen from MuPAD-Combinat,
+# see http://mupad-combinat.sourceforge.net
+
+# mupad/COMBINAT/words.mu/evaluationTable:
+function evaluation_table(word::Vector)
+    t = Dict{Any, Int}()
+    for l in word
+        if haskey(t, l)
+            t[l] += 1
+        else
+            t[l] = 1
+        end
+    end
+    t
+end 
+
+# mupad/COMBINAT/words.mu/standard
+function standard(word::Vector)
+    t = evaluation_table(word)
+    kk = sort(collect(keys(t)))
+    offset = 0
+    tmp = 0
+    for k in kk
+        tmp = t[k]
+        t[k] = offset
+        offset += tmp
+    end
+    r = zeros(Int, length(word))
+    i = 1
+    for l in word
+        t[l] += 1
+        r[i] = t[l]
+        i += 1
+    end
+    r
+end
+
+# mupad/COMBINAT/integerVectorsWeighted.mu/
+# (There it is a local function inside function list
+function recfun(n::Int, l1::Vector{Int})
+    result = []
+    l = copy(l1)
+    w = pop!(l)
+    if length(l)==0
+        d = div(n, w)
+        if mod(n, w)==0
+            return Vector{Int}[[d]]
+        else
+            return Vector{Int}[]
+        end
+    end
+    for d = div(n, w):-1:0
+        result = vcat(result, [vcat(x,d) for x in recfun(n-d*w, l)])
+    end
+    result
+end
+
+# mupad/COMBINAT/permutations.mu/mult2
+function mult2(x::Vector{Int}, y::Vector{Int})
+    nx = length(x)
+    ny = length(y)
+    # complete with fixed points if the permutations are not
+    # of the same length
+    x = vcat(x, nx+1:ny)
+    y = vcat(y, ny+1:nx)
+    result = x
+    for i=1:length(x)
+        result[y[i]] = x[i]
+    end
+    result
+end
+
+
+# mupad/COMBINAT/integerVectorsWeighted.mu/list
+function integer_vector_weighted(n::Int, l::Vector{Int})
+    if length(l)==0
+        if n==0
+            return Vector{Int}[[]]
+        else
+            return Vector{Int}[]
+        end
+    end
+
+    # Heuristic: we sort the weights increasingly to limit
+    # the backtracking, and reorder back the result afterward
+    perm = standard(l)
+    sort!(l)
+
+    [mult2(x, perm) for x in recfun(n,l)]
+end
+
+
+
+# For the following 2 functions, see: 
+#   Sawada, Joe.  "A fast algorithm to generate necklaces with fixed content", 
+#   Source Theoretical Computer Science archive Volume 301 , Issue 1-3 (May 2003)
+# and sage/src/sage/combinat/necklace.py
+
+
+function simple_fixed_content1(res::Vector{Vector{Int}}, a::Vector{Int}, 
+            content::Vector{Int}, t::Int, p::Int, k::Int)
+    n = length(a)
+    if t>n
+        if n==p 
+            push!(res, a)
+        end
+    else
+        for j=a[t-p]:k-1
+            if content[j+1]!=0
+                a[t] = j
+                content[j+1] -= 1
+                if j==a[t-p]
+                    simple_fixed_content1(res, a, content, t+1, p, k) 
+                else
+                    simple_fixed_content1(res, a, content, t+1, t, k) 
+                end
+                content[j+1] += 1
+            end
+        end
+    end
+end
+
+function simple_fixed_content(content::Vector{Int})
+    a = zeros(Int, sum(content))
+    content[1] -= 1
+    k = length(content)
+    res = Vector{Int}[]
+    simple_fixed_content1(res, a, content, 2, 1, k)
+    res
+end
+
+#The following function is stolen from sage/combinat/necklace.py
+
+function lyndon_words(e::Vector{Int})
+    k=1
+    while e[k]==0
+        k += 1
+    end
+    Vector{Int}[[i+k for i in z] for z in simple_fixed_content(e[k:end])]
+end
+
 
 
 
