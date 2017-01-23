@@ -362,9 +362,9 @@ function simple_fixed_content1(res::Vector{Vector{Int}}, a::Vector{Int},
                 a[t] = j
                 content[j+1] -= 1
                 if j==a[t-p]
-                    simple_fixed_content1(res, a, content, t+1, p, k) 
+                    simple_fixed_content1(res, copy(a), content, t+1, p, k) 
                 else
-                    simple_fixed_content1(res, a, content, t+1, t, k) 
+                    simple_fixed_content1(res, copy(a), content, t+1, t, k) 
                 end
                 content[j+1] += 1
             end
