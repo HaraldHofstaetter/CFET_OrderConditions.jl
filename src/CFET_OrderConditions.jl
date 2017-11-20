@@ -411,4 +411,54 @@ function gen_CFET_order_conditions_without_redundancies(N::Integer,J::Integer)
 end
 
 
+function coeff_rhs(K::Array{Int64,1})
+    n = sum(K+1)
+    if n==0
+        return 1//1
+    else
+        return coeff_rhs(n-K[1]-1,K[2:end])//n
+    end
+end
+
+function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
+
+    # expand W by rightmost subwords
+    WW=Dict{Array{Int64,1},Int}(Int64[]=>1)
+    for w in W 
+        for l=1:length(w)
+            WW[w[l:end]] = 1
+        end
+    end
+    W1=collect(keys(WW))
+    #sort!(W1, lt=(x,y)->((length(x)<length(y))||((length(x)==length(y))&&lexless(x,y))))
+
+    qmax = maximum([maximum(w) for w in W])
+
+    b = giac[giac(string("b",j, "_", q)) for j=1:J, q=0:qmax]
+
+    bj = giac[giac(string("bj_", q)) for q=0:qmax]
+
+    m=length(W1)
+    M=zeros(giac, m, m)
+    for k=1:m
+        for l=1:m
+            r = length(W1[k])-length(W1[l])
+            if r>=0 && W1[k][r+1:end]==W1[l]
+                w = W1[k][1:r]
+                M[k,l]  = factor(prod(bj[w+1]))/factorial(length(w))
+            end
+        end
+    end
+
+    c = map(x->subst(x, bj, reshape(b[1,:],qmax+1)), M[:,1])
+    for j=2:J
+        Mj = map(x->subst(x, bj, reshape(b[j,:],qmax+1)), M)
+       c = Mj*c
+    end
+    c = c[indexin(W, W1)] # delete data belonging to auxilliary data
+                          # belonging to rightmost subwords
+
+    [  c[j]-coeff_rhs(W[j]) for j=1:length(W) ]                  
+end
+
 end # module
