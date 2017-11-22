@@ -17,6 +17,7 @@ export number_commutators_of_grade_equal_to
 export number_commutators_of_grade_equal_or_less_than
 
 export integer_vector_weighted, lyndon_words, gen_hall_basis_elements_of_grade
+export gen_hall_basis_elements_of_grades_leq
 export gen_CFET_order_conditions_without_redundancies
 
 const Commutator = Array{Int64,1}
@@ -415,13 +416,7 @@ function gen_CFET_order_conditions_without_redundancies(N::Integer,J::Integer)
 end
 
 
-function coeff_rhs(K::Array{Int64,1}, n=sum(K+1))
-    if n==0
-        return 1//1
-    else
-        return coeff_rhs(K[2:end],n-K[1]-1)//n
-    end
-end
+coeff_rhs(w::Array{Int64,1}) = 1//prod([sum(w[j:end]+1) for j=1:length(w)])
 
 
 function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
@@ -433,7 +428,7 @@ function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
         end
     end
     W1=collect(keys(WW))
-    sort!(W1, lt=(x,y)->((length(x)<length(y))||((length(x)==length(y))&&lexless(x,y))))
+    #sort!(W1, lt=(x,y)->((length(x)<length(y))||((length(x)==length(y))&&lexless(x,y))))
 
     qmax = maximum([maximum(w) for w in W])
 
@@ -453,7 +448,7 @@ function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
         end
     end
 
-    c = map(x->subst(x, bj, b[:,1]), M[:,1])
+    c = map(x->subst(x, bj, b[:,1]), M[:,findfirst(W1, Int64[])])
     for j=2:J
         Mj = map(x->subst(x, bj, b[:,j]), M)
         c = Mj*c
