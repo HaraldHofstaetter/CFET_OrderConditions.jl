@@ -1,3 +1,5 @@
+__precompile__()
+
 module CFET_OrderConditions
 
 using Giac
@@ -17,8 +19,8 @@ export number_commutators_of_grade_equal_or_less_than
 export integer_vector_weighted, lyndon_words, gen_hall_basis_elements_of_grade
 export gen_CFET_order_conditions_without_redundancies
 
-typealias Commutator Array{Int64,1}
-typealias LCCC{T} Dict{Array{Array{Int64,1},1},T} # Linear Combination of Commutator Chains
+const Commutator = Array{Int64,1}
+LCCC{T} = Dict{Array{Array{Int64,1},1},T} # Linear Combination of Commutator Chains
 
 
 
@@ -404,6 +406,8 @@ function gen_hall_basis_elements_of_grade(g::Int)
     res
 end
 
+gen_hall_basis_elements_of_grades_leq(p) = vcat([gen_hall_basis_elements_of_grade(k) for k=1:p]...)
+
 function gen_CFET_order_conditions_without_redundancies(N::Integer,J::Integer)
     C0 = gen_CFET_order_conditions(N, J)
     Dict{Array{Int, 1}, giac}[Dict{Array{Int, 1}, giac}(
@@ -411,17 +415,16 @@ function gen_CFET_order_conditions_without_redundancies(N::Integer,J::Integer)
 end
 
 
-function coeff_rhs(K::Array{Int64,1})
-    n = sum(K+1)
+function coeff_rhs(K::Array{Int64,1}, n=sum(K+1))
     if n==0
         return 1//1
     else
-        return coeff_rhs(n-K[1]-1,K[2:end])//n
+        return coeff_rhs(K[2:end],n-K[1]-1)//n
     end
 end
 
-function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
 
+function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
     # expand W by rightmost subwords
     WW=Dict{Array{Int64,1},Int}(Int64[]=>1)
     for w in W 
@@ -430,11 +433,11 @@ function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
         end
     end
     W1=collect(keys(WW))
-    #sort!(W1, lt=(x,y)->((length(x)<length(y))||((length(x)==length(y))&&lexless(x,y))))
+    sort!(W1, lt=(x,y)->((length(x)<length(y))||((length(x)==length(y))&&lexless(x,y))))
 
     qmax = maximum([maximum(w) for w in W])
 
-    b = giac[giac(string("b",j, "_", q)) for j=1:J, q=0:qmax]
+    b = giac[giac(string("b",j, "_", q)) for q=0:qmax, j=1:J]
 
     bj = giac[giac(string("bj_", q)) for q=0:qmax]
 
@@ -450,15 +453,17 @@ function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
         end
     end
 
-    c = map(x->subst(x, bj, reshape(b[1,:],qmax+1)), M[:,1])
+    c = map(x->subst(x, bj, b[:,1]), M[:,1])
     for j=2:J
-        Mj = map(x->subst(x, bj, reshape(b[j,:],qmax+1)), M)
-       c = Mj*c
+        Mj = map(x->subst(x, bj, b[:,j]), M)
+        c = Mj*c
     end
     c = c[indexin(W, W1)] # delete data belonging to auxilliary data
                           # belonging to rightmost subwords
 
-    [  c[j]-coeff_rhs(W[j]) for j=1:length(W) ]                  
+    eqs = [  c[j]-coeff_rhs(W[j]) for j=1:length(W) ]                  
+    vars = vcat(b...)
+    eqs, vars
 end
 
 end # module
