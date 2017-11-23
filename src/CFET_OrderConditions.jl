@@ -428,7 +428,6 @@ function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
         end
     end
     W1=collect(keys(WW))
-    #sort!(W1, lt=(x,y)->((length(x)<length(y))||((length(x)==length(y))&&lexless(x,y))))
 
     qmax = maximum([maximum(w) for w in W])
 
@@ -453,10 +452,10 @@ function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
         Mj = map(x->subst(x, bj, b[:,j]), M)
         c = Mj*c
     end
-    c = c[indexin(W, W1)] # delete data belonging to auxilliary data
-                          # belonging to rightmost subwords
 
-    eqs = [  c[j]-coeff_rhs(W[j]) for j=1:length(W) ]                  
+    c = [c[findfirst(W1, w)] for w in W]
+
+    eqs = [ c[j]-coeff_rhs(W[j]) for j=1:length(W) ]                  
     vars = vcat(b...)
     eqs, vars
 end
