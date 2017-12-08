@@ -18,6 +18,7 @@ export number_commutators_of_grade_equal_or_less_than
 
 export integer_vector_weighted, lyndon_words, gen_hall_basis_elements_of_grade
 export gen_hall_basis_elements_of_grades_leq
+export extend_by_rightmost_subwords
 export gen_CFET_order_conditions_without_redundancies
 
 const Commutator = Array{Int64,1}
@@ -419,20 +420,21 @@ end
 coeff_rhs(w::Array{Int64,1}) = 1//prod([sum(w[j:end]+1) for j=1:length(w)])
 
 
-function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
-    # expand W by rightmost subwords
+function extend_by_rightmost_subwords(W::Array{Array{Int64,1},1})
     WW=Dict{Array{Int64,1},Int}(Int64[]=>1)
     for w in W 
         for l=1:length(w)
             WW[w[l:end]] = 1
         end
     end
-    W1=collect(keys(WW))
+    return collect(keys(WW))
+end
+
+function gen_CFET_order_conditions(W::Array{Array{Int64,1},1}, J::Integer)
+    W1 = extend_by_rightmost_subwords(W)
 
     qmax = maximum([maximum(w) for w in W])
-
     b = giac[giac(string("b",j, "_", q)) for q=0:qmax, j=1:J]
-
     bj = giac[giac(string("bj_", q)) for q=0:qmax]
 
     m=length(W1)
